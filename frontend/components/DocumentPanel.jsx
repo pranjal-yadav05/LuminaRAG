@@ -1,68 +1,68 @@
-'use client'
+"use client";
 
-import { useState, useRef } from 'react'
-import { Upload, File, CheckCircle2, AlertCircle } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { useState, useRef } from "react";
+import { Upload, File, CheckCircle2, AlertCircle, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function DocumentPanel({
   fileHash,
   fileName,
   processingStatus,
   onUpload,
+  mobile = false,
+  onClose,
 }) {
-  const [dragActive, setDragActive] = useState(false)
-  const fileInputRef = useRef(null)
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef(null);
 
   const handleDrag = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true)
-    } else if (e.type === 'dragleave') {
-      setDragActive(false)
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
     }
-  }
+  };
 
   const handleDrop = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setDragActive(false)
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
 
-    const files = e.dataTransfer.files
-    if (files && files[0]?.type === 'application/pdf') {
-      onUpload(files[0])
+    const files = e.dataTransfer.files;
+    if (files && files[0]?.type === "application/pdf") {
+      onUpload(files[0]);
     }
-  }
+  };
 
   const handleFileSelect = (e) => {
     if (e.target.files && e.target.files[0]) {
-      onUpload(e.target.files[0])
+      onUpload(e.target.files[0]);
     }
-  }
+  };
 
   return (
-    <div className="w-64 border-r border-border bg-card flex flex-col overflow-hidden">
-      {/* Header */}
-      <div className="px-5 py-4 border-b border-border/50">
-        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          Document
-        </h2>
-      </div>
+    <div
+      className={`${
+        mobile
+          ? "flex w-full h-full"
+          : "hidden md:flex md:w-64 lg:w-72"
+      } border-r border-border ${mobile ? "bg-background" : "bg-card"} flex-col`}> 
 
       {/* Content */}
-      <div className="flex-1 flex flex-col p-4 gap-4 overflow-y-auto">
+      <div className="flex-1 flex flex-col p-5 md:p-4 gap-5 overflow-y-auto">
         {/* Upload Area */}
         <div
-          className={`relative border-2 border-dashed rounded-lg p-6 transition-all ${
+          className={`relative border-2 border-dashed rounded-xl p-8 transition-all ${
             dragActive
-              ? 'border-primary bg-primary/5'
-              : 'border-border/50 hover:border-border'
+              ? "border-primary bg-primary/5"
+              : "border-border/50 hover:border-border"
           }`}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
-          onDrop={handleDrop}
-        >
+          onDrop={handleDrop}>
           <input
             ref={fileInputRef}
             type="file"
@@ -71,14 +71,17 @@ export default function DocumentPanel({
             className="hidden"
           />
 
-          <div className="flex flex-col items-center justify-center gap-3 text-center cursor-pointer"
+          <div
+            className="flex flex-col items-center justify-center gap-3 text-center cursor-pointer"
             onClick={() => fileInputRef.current?.click()}>
             <div className="p-2 rounded-lg bg-muted/50">
               <Upload className="w-5 h-5 text-muted-foreground" />
             </div>
             <div>
               <p className="text-xs font-medium">Drag and drop PDF</p>
-              <p className="text-xs text-muted-foreground mt-1">or click to browse</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                or click to browse
+              </p>
             </div>
           </div>
         </div>
@@ -132,13 +135,17 @@ export default function DocumentPanel({
                 </p>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground ml-6">{processingStatus}</p>
+            <p className="text-xs text-muted-foreground ml-6">
+              {processingStatus}
+            </p>
           </div>
         )}
 
         {/* Quick Tips */}
         <div className="mt-auto pt-4 border-t border-border/50">
-          <p className="text-xs font-medium text-muted-foreground mb-3">Quick Tips</p>
+          <p className="text-xs font-medium text-muted-foreground mb-3">
+            Quick Tips
+          </p>
           <ul className="space-y-2 text-xs text-muted-foreground">
             <li className="flex gap-2">
               <span className="text-primary font-bold">•</span>
@@ -156,5 +163,5 @@ export default function DocumentPanel({
         </div>
       </div>
     </div>
-  )
+  );
 }
