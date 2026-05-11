@@ -1,5 +1,7 @@
+import io
 import pdfplumber
 import re
+
 
 def extract_pages_from_pdf(file):
     pages = []
@@ -15,6 +17,7 @@ def extract_pages_from_pdf(file):
 
     return pages
 
+
 def extract_pages_with_positions(file):
     pages = []
 
@@ -28,6 +31,7 @@ def extract_pages_with_positions(file):
             })
 
     return pages
+
 
 def chunk_pages(pages, chunk_size=1000, overlap=200):
     chunks = []
@@ -45,6 +49,7 @@ def chunk_pages(pages, chunk_size=1000, overlap=200):
             })
 
     return chunks
+
 
 def chunk_words(pages, max_words=150, overlap_words=30):
     """
@@ -134,17 +139,36 @@ def chunk_words(pages, max_words=150, overlap_words=30):
 
     return chunks
 
-_pdf_cache = {}
 
-def get_pdf_image(pdf_path, page_number):
+# ── image rendering ───────────────────────────────────────────────────────────
+
+_pdf_cache: dict[str, object] = {}
+
+
+def get_pdf_image(pdf_path: str, page_number: int):
+    """
+    Render a page from a PDF file on disk.
+    Kept for any callers that still have a local path.
+    """
     key = f"{pdf_path}_{page_number}"
-
     if key in _pdf_cache:
         return _pdf_cache[key]
 
     with pdfplumber.open(pdf_path) as pdf:
         page = pdf.pages[page_number - 1]
-        img = page.to_image(resolution=150)
+        img  = page.to_image(resolution=150)
 
     _pdf_cache[key] = img
+    return img
+
+
+def get_pdf_image_from_bytes(pdf_bytes: bytes, page_number: int):
+    """
+    Render a page from in-memory PDF bytes (no temp file needed).
+    Used by rag.highlight_sources so no disk I/O is required.
+    """
+    buf = io.BytesIO(pdf_bytes)
+    with pdfplumber.open(buf) as pdf:
+        page = pdf.pages[page_number - 1]
+        img  = page.to_image(resolution=150)
     return img

@@ -3,19 +3,30 @@ rag.py
 ======
 Embedding creation, storage, retrieval, and answer generation.
 
-All disk I/O goes through storage_paths.paths(user_id, file_id) —
-no path strings are constructed here.
+Storage backend: Cloudinary (raw for embeddings/PDFs, image for page PNGs).
+Local disk is used only as a short-lived temp buffer during a single request.
+All persistent I/O goes through cloudinary_storage.
 """
 
+import io
 import os
 import pickle
-import numpy as np
-from openai import OpenAI
-from dotenv import load_dotenv
-from pdf_utils import get_pdf_image
-from storage_paths import paths as file_paths
 import re
 import json
+import tempfile
+
+import numpy as np
+from dotenv import load_dotenv
+from openai import OpenAI
+
+from cloudinary_storage import (
+    delete_embeddings,
+    download_embeddings,
+    download_pdf,
+    upload_embeddings,
+    upload_image,
+)
+from pdf_utils import get_pdf_image_from_bytes
 
 load_dotenv()
 
@@ -43,38 +54,34 @@ def parse_llm_response(raw: str) -> dict:
     return {"answer": raw, "highlights": []}
 
 
-# ── embeddings persistence ────────────────────────────────────────────────────
+# ── embeddings persistence (Cloudinary-backed) ────────────────────────────────
 
 def save_embeddings(user_id: str, file_id: str, data: dict) -> None:
     """
-    Persist chunks + embeddings to disk.
-    Keyed by (user_id, file_id) — path resolved via storage_paths.
+    Serialise chunks + embeddings with pickle and upload to Cloudinary.
+    Keyed by (user_id, file_id) — no local file is kept after upload.
     """
-    p = file_paths(user_id, file_id)
-    p.makedirs()
-
     payload = {
-        "user_id": user_id,
-        "file_id": file_id,
-        "chunks":  data["chunks"],
+        "user_id":    user_id,
+        "file_id":    file_id,
+        "chunks":     data["chunks"],
         "embeddings": data["embeddings"],
     }
-    with open(p.embeddings, "wb") as f:
-        pickle.dump(payload, f)
+    data_bytes = pickle.dumps(payload)
+    upload_embeddings(user_id, file_id, data_bytes)
 
 
 def load_embeddings(user_id: str, file_id: str) -> dict | None:
     """
-    Load embeddings for (user_id, file_id).
+    Download embeddings from Cloudinary and deserialise.
     Returns None if not found.
-    Includes a safety check so data can never cross user boundaries.
+    Includes ownership safety check so data can never cross user boundaries.
     """
-    p = file_paths(user_id, file_id)
-    if not os.path.exists(p.embeddings):
+    data_bytes = download_embeddings(user_id, file_id)
+    if data_bytes is None:
         return None
 
-    with open(p.embeddings, "rb") as f:
-        data = pickle.load(f)
+    data = pickle.loads(data_bytes)
 
     # Defensive: reject if ownership metadata doesn't match
     if data.get("user_id") != user_id or data.get("file_id") != file_id:
@@ -184,7 +191,7 @@ def answer_from_chunks(
 ) -> tuple[str, list, list]:
     """
     Returns (answer, highlights, images).
-    Note: user_id + file_id are explicit args — no ambiguity.
+    PDF bytes are fetched from Cloudinary only when highlight images are needed.
     """
     query_emb = client.embeddings.create(
         model=EMBEDDING_MODEL, input=query
@@ -202,7 +209,13 @@ def answer_from_chunks(
 
     answer     = parsed["answer"]
     highlights = parsed.get("highlights", [])
-    images     = highlight_sources(user_id, file_id, top_chunks, highlights)
+
+    # Only download PDF bytes if there are highlights to render
+    pdf_bytes = None
+    if highlights:
+        pdf_bytes = download_pdf(user_id, file_id)
+
+    images = highlight_sources(user_id, file_id, top_chunks, highlights, pdf_bytes)
 
     return answer, highlights, images
 
@@ -214,10 +227,19 @@ def highlight_sources(
     file_id: str,
     top_chunks: list[tuple],
     highlights: list[dict],
+    pdf_bytes: bytes | None,
 ) -> list[dict]:
-    p = file_paths(user_id, file_id)
+    """
+    Draw highlight boxes on PDF pages and upload each annotated page PNG
+    to Cloudinary.  Returns a list of dicts with Cloudinary secure_urls.
 
-    page_images: dict[int, object]      = {}
+    pdf_bytes is accepted as a parameter so it is fetched once upstream
+    and not re-downloaded per call.
+    """
+    if not highlights or pdf_bytes is None:
+        return []
+
+    page_images: dict[int, object]       = {}
     page_highlight_types: dict[int, set] = {}
 
     for highlight in highlights:
@@ -231,7 +253,8 @@ def highlight_sources(
                 continue
 
             if page not in page_images:
-                page_images[page] = get_pdf_image(p.pdf, page)
+                # get_pdf_image_from_bytes renders from in-memory bytes
+                page_images[page] = get_pdf_image_from_bytes(pdf_bytes, page)
 
             im         = page_images[page]
             word_texts = [w["text"] for w in words]
@@ -256,12 +279,17 @@ def highlight_sources(
 
     images = []
     for page in page_highlight_types:
-        image_path = p.page_image(page)
-        page_images[page].save(image_path)
+        # Render the annotated page to an in-memory PNG — no disk write
+        buf = io.BytesIO()
+        page_images[page].save(buf, format="PNG")
+        img_bytes = buf.getvalue()
+
+        secure_url = upload_image(user_id, file_id, page, img_bytes)
+
         images.append({
-            "page":       page,
-            "types":      list(page_highlight_types[page]),
-            "image_url":  p.page_image_url(page),   # serve URL, not raw path
+            "page":      page,
+            "types":     list(page_highlight_types[page]),
+            "image_url": secure_url,   # direct Cloudinary URL
         })
 
     return images

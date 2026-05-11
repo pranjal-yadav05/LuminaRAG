@@ -5,22 +5,35 @@ FastAPI application.
 
 Key invariants
 --------------
-* Every on-disk resource is scoped to (user_id, file_id) via storage_paths.
+* Every cloud resource is scoped to (user_id, file_id) via cloudinary_storage.
 * file_id is a UUID generated once on upload and never reused.
 * content_hash is used only for dedup (reuse embeddings); it is NOT a key.
-* Sessions belong to a file; deleting a file cascades to its sessions + disk.
+* Sessions belong to a file; deleting a file cascades to its sessions + cloud assets.
+
+Storage backend: Cloudinary
+* PDFs        → cloudinary_storage.upload_pdf / download_pdf / delete_pdf
+* Embeddings  → cloudinary_storage.upload_embeddings / download_embeddings / delete_embeddings
+* Page images → cloudinary_storage.upload_image / delete_images_for_file
+
+No local StaticFiles mount is needed — image URLs are Cloudinary secure URLs.
 """
 
 import hashlib
+import io
 import os
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from auth import create_access_token, decode_token, hash_password, verify_password
+from cloudinary_storage import (
+    delete_embeddings,
+    delete_images_for_file,
+    delete_pdf,
+    upload_pdf,
+)
 from db import (
     add_message,
     create_session,
@@ -41,14 +54,8 @@ from db_files import (
 from db_users import users
 from pdf_utils import chunk_words, extract_pages_with_positions
 from rag import answer_from_chunks, create_embeddings, load_embeddings, save_embeddings
-from storage_paths import paths as file_paths
 
 # ── startup ───────────────────────────────────────────────────────────────────
-
-# Create top-level static dirs (subdirs are created per-file via makedirs())
-os.makedirs("pdf_store",        exist_ok=True)
-os.makedirs("embeddings_store", exist_ok=True)
-os.makedirs("images",           exist_ok=True)
 
 app = FastAPI()
 
@@ -64,8 +71,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Serve per-file images at /images/<user_id>/<file_id>/page_N.png
-app.mount("/images", StaticFiles(directory="images"), name="images")
+# NOTE: No StaticFiles mount — images are served directly from Cloudinary URLs.
 
 oauth2_scheme = HTTPBearer()
 
@@ -121,7 +127,7 @@ async def login(req: LoginRequest):
 # ── file management ───────────────────────────────────────────────────────────
 
 @app.post("/upload-pdf")
-async def upload_pdf(
+async def upload_pdf_endpoint(
     file: UploadFile = File(...),
     user_id: str = Depends(get_current_user),
 ):
@@ -131,14 +137,15 @@ async def upload_pdf(
     Flow
     ----
     1. Hash the bytes (SHA-256).
-    2. If this user already has a file with the same hash, reuse its
-       embeddings — but still create a fresh file record so the user
-       can manage uploads independently.
-    3. Save PDF to disk at the path owned by the new file_id.
-    4. Generate (or copy) embeddings, then return file_id + session_id.
+    2. Create a new file record (new UUID every upload).
+    3. Upload PDF to Cloudinary.
+    4. Create a default session for this file.
+    5. If this user already has a file with the same hash, copy its
+       embeddings to the new file_id — avoids re-processing.
+    6. Otherwise extract text, create embeddings, and save to Cloudinary.
     """
-    file_bytes   = await file.read()
-    c_hash       = content_hash(file_bytes)
+    file_bytes = await file.read()
+    c_hash     = content_hash(file_bytes)
 
     # 1. Create file record (new UUID every upload)
     file_id = await create_file(
@@ -147,12 +154,8 @@ async def upload_pdf(
         content_hash=c_hash,
     )
 
-    p = file_paths(user_id, file_id)
-    p.makedirs()
-
-    # 2. Save PDF
-    with open(p.pdf, "wb") as f:
-        f.write(file_bytes)
+    # 2. Upload PDF to Cloudinary
+    upload_pdf(user_id, file_id, file_bytes)
 
     # 3. Create a default session for this file
     session_id = await create_session(user_id=user_id, file_id=file_id)
@@ -162,7 +165,7 @@ async def upload_pdf(
     if duplicate and duplicate["file_id"] != file_id:
         cached = load_embeddings(user_id, duplicate["file_id"])
         if cached:
-            # Copy embeddings under the new file_id so paths stay consistent
+            # Re-save under the new file_id so ownership metadata is correct
             save_embeddings(user_id, file_id, cached)
             return {
                 "message":    "Loaded from cache (duplicate content)",
@@ -172,7 +175,6 @@ async def upload_pdf(
             }
 
     # 5. Process fresh
-    import io
     pages      = extract_pages_with_positions(io.BytesIO(file_bytes))
     chunks     = chunk_words(pages)
     embeddings = create_embeddings(chunks)
@@ -204,7 +206,7 @@ async def get_file_detail(file_id: str, user_id: str = Depends(get_current_user)
 async def delete_file_endpoint(file_id: str, user_id: str = Depends(get_current_user)):
     """
     Delete a file and everything associated with it:
-    DB record → sessions → PDF → embeddings → images.
+    DB record → sessions → Cloudinary PDF → embeddings → images.
     """
     file = await get_file(file_id)
     if not file:
@@ -216,8 +218,19 @@ async def delete_file_endpoint(file_id: str, user_id: str = Depends(get_current_
     await delete_file(file_id)
     await delete_sessions_for_file(file_id)
 
-    # 2. Disk (single call removes all dirs for this file)
-    file_paths(user_id, file_id).delete_all()
+    # 2. Cloudinary assets (best-effort; errors are non-fatal)
+    try:
+        delete_pdf(user_id, file_id)
+    except Exception:
+        pass
+    try:
+        delete_embeddings(user_id, file_id)
+    except Exception:
+        pass
+    try:
+        delete_images_for_file(user_id, file_id)
+    except Exception:
+        pass
 
     return {"message": "File and all associated data deleted"}
 
@@ -319,7 +332,7 @@ async def ask(
     if not file or file["user_id"] != user_id:
         raise HTTPException(status_code=404, detail="File not found")
 
-    # Load embeddings — always keyed by (user_id, file_id)
+    # Load embeddings from Cloudinary — always keyed by (user_id, file_id)
     data = load_embeddings(user_id, file_id)
     if not data:
         raise HTTPException(status_code=400, detail="Embeddings not found. Re-upload the PDF.")
