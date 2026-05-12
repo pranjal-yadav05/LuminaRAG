@@ -1,3 +1,9 @@
+"""
+pdf_utils.py
+============
+PDF text extraction and chunking utilities.
+"""
+
 import io
 import pdfplumber
 import re
@@ -19,11 +25,28 @@ def extract_pages_from_pdf(file):
 
 
 def extract_pages_with_positions(file):
+    """
+    Extract words from every page with tight tolerances so that
+    characters that are physically close but belong to different
+    words are not merged into one token.
+
+    x_tolerance=1  — characters must be within 1 pt horizontally to be
+                      joined into the same word (default is 3).  Tighter
+                      value keeps words that happen to be printed close
+                      together from fusing into one blob like
+                      "eInfochips(AnArrowCompany)".
+    y_tolerance=3  — standard vertical grouping, unchanged.
+    keep_blank_chars=False — drop invisible/zero-width chars that pad spacing.
+    """
     pages = []
 
     with pdfplumber.open(file) as pdf:
         for i, page in enumerate(pdf.pages):
-            words = page.extract_words()
+            words = page.extract_words(
+                x_tolerance=1,
+                y_tolerance=3,
+                keep_blank_chars=False,
+            )
 
             pages.append({
                 "page_number": i + 1,
@@ -165,7 +188,6 @@ def get_pdf_image(pdf_path: str, page_number: int):
 def get_pdf_image_from_bytes(pdf_bytes: bytes, page_number: int):
     """
     Render a page from in-memory PDF bytes (no temp file needed).
-    Used by rag.highlight_sources so no disk I/O is required.
     """
     buf = io.BytesIO(pdf_bytes)
     with pdfplumber.open(buf) as pdf:

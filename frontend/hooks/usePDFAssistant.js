@@ -5,18 +5,18 @@ import { useState, useCallback } from "react";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export function usePDFAssistant(token) {
-  // files[]: { file_id, file_name, content_hash, created_at, sessions[] }
-  const [files, setFiles] = useState([]);
-  const [sessions, setSessions] = useState([]); // flat list for sidebar compat
+  const [files, setFiles]                   = useState([]);
+  const [sessions, setSessions]             = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
-  const [activeFileId, setActiveFileId] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [images, setImages] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [fileName, setFileName] = useState(null);
-  const [fileId, setFileId] = useState(null);       // replaces fileHash
+  const [activeFileId, setActiveFileId]     = useState(null);
+  const [activeMessageId, setActiveMessageId] = useState(null); // which assistant msg is shown in viewer
+  const [messages, setMessages]             = useState([]);
+  const [images, setImages]                 = useState([]);
+  const [loading, setLoading]               = useState(false);
+  const [fileName, setFileName]             = useState(null);
+  const [fileId, setFileId]                 = useState(null);
   const [processingStatus, setProcessingStatus] = useState("");
-  const [error, setError] = useState(null);
+  const [error, setError]                   = useState(null);
   const [sessionsLoading, setSessionsLoading] = useState(false);
 
   const authHeaders = useCallback(
@@ -24,56 +24,59 @@ export function usePDFAssistant(token) {
     [token]
   );
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  // ── helpers ───────────────────────────────────────────────────────────────
 
-  /** Build a full image URL from the relative image_url the API returns */
   const resolveImageUrl = (image_url) => {
     if (!image_url) return null;
     if (image_url.startsWith("http")) return image_url;
     return `${API_BASE_URL}${image_url}`;
   };
 
-  /** Map a raw API message to local shape */
   const mapMessage = (m, idx, sessionId) => ({
-    role: m.role,
-    content: m.content,
+    role:       m.role,
+    content:    m.content,
     highlights: m.highlights || [],
     images: (m.images || []).map((img) => ({
-      page: img.page,
-      types: img.types || [],
+      page:       img.page,
+      types:      img.types || [],
       image_path: resolveImageUrl(img.image_url),
     })),
-    id: m.id ?? `${sessionId}-${idx}`,
+    id:         m.id ?? `${sessionId}-${idx}`,
     created_at: m.created_at,
   });
 
-  // ── Fetch all files (with their sessions nested) ──────────────────────────
+  // ── select a specific message's evidence in the viewer ────────────────────
+
+  /**
+   * Called when the user clicks an assistant message bubble.
+   * Updates the viewer to show that message's images and marks it active.
+   */
+  const selectMessage = useCallback((messageId, messageImages) => {
+    setActiveMessageId(messageId);
+    setImages(messageImages);
+  }, []);
+
+  // ── fetch all files with nested sessions ──────────────────────────────────
 
   const fetchChatHistory = useCallback(async () => {
     if (!token) return;
     setSessionsLoading(true);
     try {
-      // 1. Get all files
       const filesRes = await fetch(`${API_BASE_URL}/files`, {
         headers: authHeaders(),
       });
       if (!filesRes.ok) throw new Error("Failed to fetch files");
-      const filesData = await filesRes.json();
-      const fileList = Array.isArray(filesData) ? filesData : [];
+      const fileList = await filesRes.json();
 
-      // 2. For each file, get its sessions (parallel)
       const filesWithSessions = await Promise.all(
-        fileList.map(async (file) => {
+        (Array.isArray(fileList) ? fileList : []).map(async (file) => {
           try {
             const sessRes = await fetch(
               `${API_BASE_URL}/files/${file.file_id}/sessions`,
               { headers: authHeaders() }
             );
             const sessData = sessRes.ok ? await sessRes.json() : [];
-            return {
-              ...file,
-              sessions: Array.isArray(sessData) ? sessData : [],
-            };
+            return { ...file, sessions: Array.isArray(sessData) ? sessData : [] };
           } catch {
             return { ...file, sessions: [] };
           }
@@ -81,9 +84,6 @@ export function usePDFAssistant(token) {
       );
 
       setFiles(filesWithSessions);
-
-      // Build flat sessions list (for sidebar / legacy consumers)
-      // Attach file_name onto each session so the sidebar can display it
       const flat = filesWithSessions.flatMap((f) =>
         f.sessions.map((s) => ({ ...s, file_name: f.file_name }))
       );
@@ -95,16 +95,14 @@ export function usePDFAssistant(token) {
     }
   }, [token, authHeaders]);
 
-  // Alias
   const fetchSessions = fetchChatHistory;
 
-  // ── Load a session ────────────────────────────────────────────────────────
+  // ── load a session ────────────────────────────────────────────────────────
 
   const loadSession = useCallback(
     async (sessionId) => {
       if (!token) return;
       try {
-        // FIXED: was /session/{id}, now /sessions/{id}
         const res = await fetch(`${API_BASE_URL}/sessions/${sessionId}`, {
           headers: authHeaders(),
         });
@@ -113,22 +111,13 @@ export function usePDFAssistant(token) {
 
         setActiveSessionId(data.session_id);
         setActiveFileId(data.file_id || null);
-        setImages([]);
         setError(null);
 
-        // Resolve file_name from our files list or from the flat sessions list
-        const matchedSession = sessions.find(
-          (s) => s.session_id === data.session_id
+        const matchedSession = sessions.find((s) => s.session_id === data.session_id);
+        const matchedFile    = files.find((f) => f.file_id === data.file_id);
+        setFileName(
+          matchedSession?.file_name || matchedFile?.file_name || data.file_name || null
         );
-        const matchedFile = files.find((f) => f.file_id === data.file_id);
-        const resolvedName =
-          matchedSession?.file_name ||
-          matchedFile?.file_name ||
-          data.file_name ||
-          null;
-
-        setFileName(resolvedName);
-        // Use file_id as the "ready" signal (replaces old fileHash)
         setFileId(data.file_id || null);
 
         const mapped = (data.messages || []).map((m, i) =>
@@ -136,12 +125,14 @@ export function usePDFAssistant(token) {
         );
         setMessages(mapped);
 
-        // Show images from the last assistant turn
-        const lastAssistant = [...mapped]
-          .reverse()
-          .find((m) => m.role === "assistant");
+        // Show the last assistant message's images in the viewer
+        const lastAssistant = [...mapped].reverse().find((m) => m.role === "assistant");
         if (lastAssistant?.images?.length) {
           setImages(lastAssistant.images);
+          setActiveMessageId(lastAssistant.id);
+        } else {
+          setImages([]);
+          setActiveMessageId(null);
         }
 
         setProcessingStatus(data.file_id ? "Ready" : "");
@@ -153,7 +144,7 @@ export function usePDFAssistant(token) {
     [token, authHeaders, sessions, files]
   );
 
-  // ── Upload PDF → creates file + default session ───────────────────────────
+  // ── upload PDF ────────────────────────────────────────────────────────────
 
   const handleUpload = useCallback(
     async (file) => {
@@ -161,6 +152,7 @@ export function usePDFAssistant(token) {
       setProcessingStatus("Uploading and processing PDF...");
       setMessages([]);
       setImages([]);
+      setActiveMessageId(null);
       setError(null);
       setActiveSessionId(null);
       setActiveFileId(null);
@@ -171,20 +163,18 @@ export function usePDFAssistant(token) {
 
       try {
         const res = await fetch(`${API_BASE_URL}/upload-pdf`, {
-          method: "POST",
+          method:  "POST",
           headers: authHeaders(),
-          body: formData,
+          body:    formData,
         });
         if (!res.ok) throw new Error("Upload failed");
         const data = await res.json();
 
-        // FIXED: API returns file_id (not file_hash) and session_id
         setActiveSessionId(data.session_id);
         setActiveFileId(data.file_id);
         setFileId(data.file_id);
         setProcessingStatus("Ready");
 
-        // Refresh so sidebar shows the new file + session
         await fetchChatHistory();
       } catch (err) {
         setError(err.message);
@@ -195,61 +185,52 @@ export function usePDFAssistant(token) {
     [authHeaders, fetchChatHistory]
   );
 
-  // ── Ask ───────────────────────────────────────────────────────────────────
+  // ── ask ───────────────────────────────────────────────────────────────────
 
   const handleSendMessage = useCallback(
     async (query) => {
       if (!activeSessionId || !query.trim()) return;
 
       const userMessage = {
-        role: "user",
-        content: query,
-        id: Date.now(),
-        highlights: [],
-        images: [],
+        role: "user", content: query,
+        id: Date.now(), highlights: [], images: [],
       };
       setMessages((prev) => [...prev, userMessage]);
       setLoading(true);
       setError(null);
 
       try {
-        // FIXED: was POST /ask with session_id in body
-        //        now  POST /sessions/{session_id}/ask with { query }
         const res = await fetch(
           `${API_BASE_URL}/sessions/${activeSessionId}/ask`,
           {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...authHeaders(),
-            },
-            body: JSON.stringify({ query }),
+            method:  "POST",
+            headers: { "Content-Type": "application/json", ...authHeaders() },
+            body:    JSON.stringify({ query }),
           }
         );
         if (!res.ok) throw new Error("Request failed");
         const data = await res.json();
 
-        // FIXED: images use image_url, not image_path
         const processedImages = (data.images || []).map((img) => ({
-          page: img.page,
-          types: img.types || [],
+          page:       img.page,
+          types:      img.types || [],
           image_path: resolveImageUrl(img.image_url),
         }));
 
+        const assistantId = Date.now() + 1;
         const assistantMessage = {
-          role: "assistant",
-          content: data.answer,
+          role:       "assistant",
+          content:    data.answer,
           highlights: data.highlights || [],
-          images: processedImages,
-          id: Date.now() + 1,
+          images:     processedImages,
+          id:         assistantId,
         };
         setMessages((prev) => [...prev, assistantMessage]);
 
-        if (processedImages.length) {
-          setImages(processedImages);
-        }
+        // Always update viewer to the newest response
+        setImages(processedImages);
+        setActiveMessageId(assistantId);
 
-        // Update sidebar preview without a full refetch
         setSessions((prev) =>
           prev.map((s) =>
             s.session_id === activeSessionId
@@ -259,14 +240,13 @@ export function usePDFAssistant(token) {
         );
       } catch (err) {
         setError(err.message);
+        const errorId = Date.now() + 1;
         setMessages((prev) => [
           ...prev,
           {
             role: "assistant",
             content: `Error: ${err.message}. Please try again.`,
-            id: Date.now() + 1,
-            highlights: [],
-            images: [],
+            id: errorId, highlights: [], images: [],
           },
         ]);
         console.error("Ask error:", err);
@@ -277,15 +257,14 @@ export function usePDFAssistant(token) {
     [activeSessionId, authHeaders]
   );
 
-  // ── Start a new session on an EXISTING file ───────────────────────────────
+  // ── new session on existing file ──────────────────────────────────────────
 
   const startNewSessionOnFile = useCallback(
     async (fId) => {
       if (!token || !fId) return;
       try {
-        // FIXED: was just clearing local state; now actually creates a server session
         const res = await fetch(`${API_BASE_URL}/files/${fId}/sessions`, {
-          method: "POST",
+          method:  "POST",
           headers: authHeaders(),
         });
         if (!res.ok) throw new Error("Failed to create session");
@@ -295,15 +274,14 @@ export function usePDFAssistant(token) {
         setActiveFileId(fId);
         setMessages([]);
         setImages([]);
+        setActiveMessageId(null);
         setError(null);
         setProcessingStatus("Ready");
 
-        // Find file name from local state
         const matchedFile = files.find((f) => f.file_id === fId);
         setFileName(matchedFile?.file_name || null);
         setFileId(fId);
 
-        // Refresh sidebar to include the new session
         await fetchChatHistory();
       } catch (err) {
         console.error("startNewSessionOnFile error:", err);
@@ -313,19 +291,18 @@ export function usePDFAssistant(token) {
     [token, authHeaders, files, fetchChatHistory]
   );
 
-  // ── Delete a session ──────────────────────────────────────────────────────
+  // ── delete session ────────────────────────────────────────────────────────
 
   const deleteSession = useCallback(
     async (sessionId) => {
       if (!token) return;
       try {
         const res = await fetch(`${API_BASE_URL}/sessions/${sessionId}`, {
-          method: "DELETE",
+          method:  "DELETE",
           headers: authHeaders(),
         });
         if (!res.ok) throw new Error("Failed to delete session");
 
-        // Remove from local state
         setSessions((prev) => prev.filter((s) => s.session_id !== sessionId));
         setFiles((prev) =>
           prev.map((f) => ({
@@ -334,12 +311,12 @@ export function usePDFAssistant(token) {
           }))
         );
 
-        // If this was the active session, clear it
         if (activeSessionId === sessionId) {
           setActiveSessionId(null);
           setActiveFileId(null);
           setMessages([]);
           setImages([]);
+          setActiveMessageId(null);
           setFileId(null);
           setFileName(null);
           setProcessingStatus("");
@@ -352,35 +329,32 @@ export function usePDFAssistant(token) {
     [token, authHeaders, activeSessionId]
   );
 
-  // ── Delete a file (cascades to all sessions) ──────────────────────────────
+  // ── delete file ───────────────────────────────────────────────────────────
 
   const deleteFile = useCallback(
     async (fId) => {
       if (!token) return;
       try {
         const res = await fetch(`${API_BASE_URL}/files/${fId}`, {
-          method: "DELETE",
+          method:  "DELETE",
           headers: authHeaders(),
         });
         if (!res.ok) throw new Error("Failed to delete file");
 
-        // Remove file and all its sessions from local state immediately
-        const deletedFile = files.find((f) => f.file_id === fId);
+        const deletedFile       = files.find((f) => f.file_id === fId);
         const deletedSessionIds = new Set(
           (deletedFile?.sessions || []).map((s) => s.session_id)
         );
 
         setFiles((prev) => prev.filter((f) => f.file_id !== fId));
-        setSessions((prev) =>
-          prev.filter((s) => !deletedSessionIds.has(s.session_id))
-        );
+        setSessions((prev) => prev.filter((s) => !deletedSessionIds.has(s.session_id)));
 
-        // If active session belonged to this file, clear everything
         if (activeFileId === fId) {
           setActiveSessionId(null);
           setActiveFileId(null);
           setMessages([]);
           setImages([]);
+          setActiveMessageId(null);
           setFileId(null);
           setFileName(null);
           setProcessingStatus("");
@@ -393,27 +367,21 @@ export function usePDFAssistant(token) {
     [token, authHeaders, files, activeFileId]
   );
 
-  // ── Rename a session ──────────────────────────────────────────────────────
+  // ── rename session ────────────────────────────────────────────────────────
 
   const renameSession = useCallback(
     async (sessionId, title) => {
       if (!token) return;
       try {
         const res = await fetch(`${API_BASE_URL}/sessions/${sessionId}`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            ...authHeaders(),
-          },
-          body: JSON.stringify({ title }),
+          method:  "PATCH",
+          headers: { "Content-Type": "application/json", ...authHeaders() },
+          body:    JSON.stringify({ title }),
         });
         if (!res.ok) throw new Error("Failed to rename session");
 
-        // Update local state
         setSessions((prev) =>
-          prev.map((s) =>
-            s.session_id === sessionId ? { ...s, title } : s
-          )
+          prev.map((s) => (s.session_id === sessionId ? { ...s, title } : s))
         );
         setFiles((prev) =>
           prev.map((f) => ({
@@ -431,26 +399,26 @@ export function usePDFAssistant(token) {
     [token, authHeaders]
   );
 
-  // ── Legacy: startNewSession (clears to upload state) ─────────────────────
+  // ── legacy helpers ────────────────────────────────────────────────────────
 
   const startNewSession = useCallback(() => {
     setActiveSessionId(null);
     setActiveFileId(null);
     setMessages([]);
     setImages([]);
+    setActiveMessageId(null);
     setFileName(null);
     setFileId(null);
     setProcessingStatus("");
     setError(null);
   }, []);
 
-  // ── Reset all ─────────────────────────────────────────────────────────────
-
   const resetAll = useCallback(() => {
     setActiveSessionId(null);
     setActiveFileId(null);
     setMessages([]);
     setImages([]);
+    setActiveMessageId(null);
     setLoading(false);
     setFileName(null);
     setFileId(null);
@@ -467,7 +435,8 @@ export function usePDFAssistant(token) {
     sessionsLoading,
     activeSessionId,
     activeFileId,
-    fileId,          // replaces fileHash — truthy means a file is loaded & ready
+    activeMessageId,
+    fileId,
     fileName,
     messages,
     images,
@@ -484,12 +453,13 @@ export function usePDFAssistant(token) {
     deleteSession,
     deleteFile,
     renameSession,
+    selectMessage,
     handleUpload,
     handleSendMessage,
     resetAll,
 
     // legacy compat
-    fileHash: fileId,      // kept so existing consumers don't break immediately
+    fileHash:  fileId,
     sessionId: activeSessionId,
   };
 }

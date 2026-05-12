@@ -60,6 +60,7 @@ from rag import answer_from_chunks, create_embeddings, load_embeddings, save_emb
 app = FastAPI()
 
 origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
+print(origins)
 if not origins:
     origins = ["http://localhost:3000"]
 
