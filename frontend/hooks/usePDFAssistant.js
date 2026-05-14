@@ -231,13 +231,7 @@ export function usePDFAssistant(token) {
         setImages(processedImages);
         setActiveMessageId(assistantId);
 
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.session_id === activeSessionId
-              ? { ...s, updated_at: new Date().toISOString() }
-              : s
-          )
-        );
+        await fetchChatHistory();
       } catch (err) {
         setError(err.message);
         const errorId = Date.now() + 1;

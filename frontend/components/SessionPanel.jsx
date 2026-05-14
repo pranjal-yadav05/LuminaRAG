@@ -371,7 +371,7 @@ export default function SessionPanel({
   return (
     <div
       className={`${
-        mobile ? "flex w-full h-full" : "hidden md:flex md:w-64 lg:w-72"
+        mobile ? "flex w-full h-full" : "flex w-full h-full"
       } border-r border-border bg-card flex-col`}
     >
       {/* Panel header */}

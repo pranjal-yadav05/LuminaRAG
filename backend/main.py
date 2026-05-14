@@ -53,7 +53,7 @@ from db_files import (
 )
 from db_users import users
 from pdf_utils import chunk_words, extract_pages_with_positions
-from rag import answer_from_chunks, create_embeddings, load_embeddings, save_embeddings
+from rag import answer_from_chunks, create_embeddings, load_embeddings, save_embeddings, generate_session_title
 
 # ── startup ───────────────────────────────────────────────────────────────────
 
@@ -339,7 +339,9 @@ async def ask(
         raise HTTPException(status_code=400, detail="Embeddings not found. Re-upload the PDF.")
 
     history = session.get("messages", [])
-
+    is_first_message = len(history) == 0
+    _DEFAULT_TITLES = {"new chat", ""}
+    has_title = session.get("title", "").strip().lower() not in _DEFAULT_TITLES
     answer, highlights, images = answer_from_chunks(
         query=req.query,
         chunk_embeddings=data["embeddings"],
@@ -348,9 +350,15 @@ async def ask(
         history=history[-6:],
     )
 
-    await add_message(session_id, {"role": "user",      "content": req.query})
+    await add_message(session_id, {"role": "user", "content": req.query})
     await add_message(session_id, {"role": "assistant", "content": answer,
-                                   "highlights": highlights, "images": images})
+                                "highlights": highlights, "images": images})
+
+    # Auto-title only on first message and only if no title yet
+    if is_first_message and not has_title:
+        print(f"[title] First message detected, generating title...")
+        title = generate_session_title(req.query)
+        await rename_session(session_id, title)
 
     return {
         "query":      req.query,

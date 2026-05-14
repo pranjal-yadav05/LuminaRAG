@@ -1,9 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-
+import SmoothScrollProvider from "../components/SmoothScrollProvider";
 const cn = (...cls) => cls.filter(Boolean).join(" ");
-
+import {
+  Zap,
+  Search,
+  FolderKanban,
+  Shield,
+  FileStack,
+  Moon,
+} from "lucide-react";
 // ─────────────────────────────────────────────────────────────────────────────
 // Static data
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,32 +92,32 @@ const DEMO_SCRIPTS = [
 
 const FEATURE_CARDS = [
   {
-    icon: "⚡",
+    icon: Zap,
     title: "Instant Upload",
     desc: "Drag, drop, done. Your PDF is chunked, embedded, and ready for questions in seconds.",
   },
   {
-    icon: "🔍",
+    icon: Search,
     title: "Visual Evidence",
     desc: "Every answer links back to the exact page it came from — rendered and highlighted.",
   },
   {
-    icon: "🗂",
+    icon: FolderKanban,
     title: "Multi-Session Memory",
     desc: "Organise conversations by file. Pick up any thread exactly where you left off.",
   },
   {
-    icon: "🔒",
+    icon: Shield,
     title: "Private by Default",
     desc: "Your documents are tied to your account. Nothing is shared or used for training.",
   },
   {
-    icon: "📑",
+    icon: FileStack,
     title: "Multi-Page Context",
     desc: "The retrieval engine scans the entire document, not just one chunk, for richer answers.",
   },
   {
-    icon: "🌙",
+    icon: Moon,
     title: "Dark & Light Mode",
     desc: "Follows your system preference out of the box. Easy on the eyes at any hour.",
   },
@@ -607,7 +614,9 @@ function LiveDemo() {
               </span>
             )}
           </div>
-          <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-3">
+          <div
+            ref={messagesContainerRef}
+            className="flex-1 overflow-y-auto p-3">
             {activeMsg ? (
               <FakePage pageLines={activeMsg.pageLines} page={activeMsg.page} />
             ) : (
@@ -653,13 +662,17 @@ function LiveDemo() {
 // Feature card
 // ─────────────────────────────────────────────────────────────────────────────
 
-function FeatureCard({ icon, title, desc }) {
+function FeatureCard({ icon: Icon, title, desc }) {
   return (
     <div className="group p-5 sm:p-6 rounded-2xl border border-white/8 bg-white/3 hover:bg-white/6 hover:border-white/15 transition-all duration-300">
-      <div className="text-2xl mb-3 sm:mb-4">{icon}</div>
+      <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+        <Icon className="w-4 h-4 text-white/70" strokeWidth={1.8} />
+      </div>
+
       <h3 className="text-sm font-semibold text-white mb-2 tracking-tight">
         {title}
       </h3>
+
       <p className="text-xs text-white/45 leading-relaxed">{desc}</p>
     </div>
   );
@@ -705,189 +718,219 @@ export default function LuminaLanding() {
   }, []);
 
   return (
-    <div
-      className="min-h-screen text-white overflow-x-hidden"
-      style={{ background: "#0a0a0f" }}>
-      {/* Grain texture */}
+    <SmoothScrollProvider>
       <div
-        className="fixed inset-0 pointer-events-none z-0 opacity-20"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E")`,
-          backgroundRepeat: "repeat",
-          backgroundSize: "128px",
-        }}
-      />
-
-      {/* Ambient glow blobs */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        className="min-h-screen text-white overflow-x-hidden"
+        style={{ background: "#0a0a0f" }}>
+        {/* Grain texture */}
         <div
-          className="absolute rounded-full opacity-15"
+          className="fixed inset-0 pointer-events-none z-0 opacity-20"
           style={{
-            width: "min(600px,120vw)",
-            height: "min(600px,120vw)",
-            top: -160,
-            left: "20%",
-            background: "radial-gradient(circle, #8b5cf6, transparent 70%)",
-            filter: "blur(80px)",
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E")`,
+            backgroundRepeat: "repeat",
+            backgroundSize: "128px",
           }}
         />
-        <div
-          className="absolute rounded-full opacity-10"
-          style={{
-            width: "min(400px,80vw)",
-            height: "min(400px,80vw)",
-            bottom: "20%",
-            right: "-10%",
-            background: "radial-gradient(circle, #06b6d4, transparent 70%)",
-            filter: "blur(60px)",
-          }}
-        />
-      </div>
 
-      <Navbar scrolled={scrolled} />
-
-      {/* ── HERO ── */}
-      <section className="relative z-10 pt-28 sm:pt-36 pb-14 sm:pb-24 px-4 sm:px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-[11px] sm:text-xs text-white/50 mb-6 sm:mb-8 font-mono tracking-wide">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
-            RAG-powered document intelligence
-          </div>
-
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold text-white mb-5 sm:mb-6 leading-[1.1] tracking-tight [font-family:var(--font-playfair)]">
-            Ask your PDFs
-            <br />
-            <span className="text-white/40">anything.</span>
-          </h1>
-
-          <p className="text-sm sm:text-base text-white/45 max-w-lg mx-auto mb-8 sm:mb-10 leading-relaxed">
-            Lumina extracts precise answers from your documents and shows you
-            exactly which pages back them up — no guessing, no hallucination.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a
-              href="/chat"
-              className="w-full sm:w-auto px-6 py-3 rounded-full bg-white text-[#0a0a0f] text-sm font-semibold hover:bg-white/90 transition-all hover:scale-105 shadow-lg shadow-black/20 text-center">
-              Start for free →
-            </a>
-            <a
-              href="#demo"
-              className="w-full sm:w-auto px-6 py-3 rounded-full border border-white/15 text-white/70 text-sm hover:border-white/30 hover:text-white transition-all text-center">
-              See the demo
-            </a>
-          </div>
+        {/* Ambient glow blobs */}
+        <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+          <div
+            className="absolute rounded-full opacity-15"
+            style={{
+              width: "min(600px,120vw)",
+              height: "min(600px,120vw)",
+              top: -160,
+              left: "20%",
+              background: "radial-gradient(circle, #8b5cf6, transparent 70%)",
+              filter: "blur(80px)",
+            }}
+          />
+          <div
+            className="absolute rounded-full opacity-10"
+            style={{
+              width: "min(400px,80vw)",
+              height: "min(400px,80vw)",
+              bottom: "20%",
+              right: "-10%",
+              background: "radial-gradient(circle, #06b6d4, transparent 70%)",
+              filter: "blur(60px)",
+            }}
+          />
         </div>
-      </section>
 
-      {/* ── DEMO ── */}
-      <section id="demo" className="relative z-10 px-4 sm:px-6 pb-16 sm:pb-28">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-6 sm:mb-8">
-            <div className="text-[10px] sm:text-xs font-mono uppercase tracking-widest text-white/25 mb-3">
-              Interactive Demo
+        <Navbar scrolled={scrolled} />
+
+        {/* ── HERO ── */}
+        <section className="relative z-10 pt-28 sm:pt-36 pb-14 sm:pb-24 px-4 sm:px-6">
+          <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+            {/* Grid */}
+            <div
+              className="absolute inset-0 opacity-[0.05]"
+              style={{
+                backgroundImage: `
+        linear-gradient(to right, white 1px, transparent 1px),
+        linear-gradient(to bottom, white 1px, transparent 1px)
+      `,
+                backgroundSize: "64px 64px",
+                maskImage:
+                  "radial-gradient(circle at center, black 30%, transparent 80%)",
+                WebkitMaskImage:
+                  "radial-gradient(circle at center, black 30%, transparent 80%)",
+              }}
+            />
+
+            {/* Radial fade */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(circle at top center, rgba(255,255,255,0.03), transparent 60%)",
+              }}
+            />
+          </div>
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-[11px] sm:text-xs text-white/50 mb-6 sm:mb-8 font-mono tracking-wide">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
+              RAG-powered document intelligence
             </div>
-            <h2 className="text-xl sm:text-2xl font-semibold text-white [font-family:var(--font-playfair)]">
-              See it in action
-            </h2>
-            <p className="text-xs sm:text-sm text-white/40 mt-2 px-2">
-              Step through a live conversation with a Q3 financial report
-            </p>
-          </div>
-          <LiveDemo />
-        </div>
-      </section>
 
-      {/* ── HOW IT WORKS ── */}
-      <section
-        id="how"
-        className="relative z-10 px-4 sm:px-6 py-14 sm:py-24 border-t border-white/5">
-        <div className="max-w-4xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-start md:items-center">
-            <div>
-              <div className="text-[10px] sm:text-xs font-mono uppercase tracking-widest text-white/25 mb-4">
-                How it works
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold text-white mb-5 sm:mb-6 leading-[1.1] tracking-tight [font-family:var(--font-playfair)]">
+              Ask your PDFs
+              <br />
+              <span className="text-white/40">anything.</span>
+            </h1>
+
+            <p className="text-sm sm:text-base text-white/45 max-w-lg mx-auto mb-8 sm:mb-10 leading-relaxed">
+              Lumina extracts precise answers from your documents and shows you
+              exactly which pages back them up — no guessing, no hallucination.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <a
+                href="/chat"
+                className="w-full sm:w-auto px-6 py-3 rounded-full bg-white text-[#0a0a0f] text-sm font-semibold hover:bg-white/90 transition-all hover:scale-105 shadow-lg shadow-black/20 text-center">
+                Start for free →
+              </a>
+              <a
+                href="#demo"
+                className="w-full sm:w-auto px-6 py-3 rounded-full border border-white/15 text-white/70 text-sm hover:border-white/30 hover:text-white transition-all text-center">
+                See the demo
+              </a>
+            </div>
+          </div>
+        </section>
+
+        {/* ── DEMO ── */}
+        <section
+          id="demo"
+          className="relative z-10 px-4 sm:px-6 pb-16 sm:pb-28">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-6 sm:mb-8">
+              <div className="text-[10px] sm:text-xs font-mono uppercase tracking-widest text-white/25 mb-3">
+                Interactive Demo
               </div>
-              <h2 className="text-2xl sm:text-3xl font-semibold text-white mb-4 leading-tight [font-family:var(--font-playfair)]">
-                Three steps to
-                <br />
-                instant insight.
+              <h2 className="text-xl sm:text-2xl font-semibold text-white [font-family:var(--font-playfair)]">
+                See it in action
               </h2>
-              <p className="text-sm text-white/40 leading-relaxed">
-                Lumina uses retrieval-augmented generation to ground every
-                answer in your document. No hallucination, no guesswork.
+              <p className="text-xs sm:text-sm text-white/40 mt-2 px-2">
+                Step through a live conversation with a Q3 financial report
               </p>
             </div>
-            <div className="space-y-6 sm:space-y-8">
-              {STEPS.map((s) => (
-                <StepCard key={s.num} step={s} />
+            <LiveDemo />
+          </div>
+        </section>
+
+        {/* ── HOW IT WORKS ── */}
+        <section
+          id="how"
+          className="relative z-10 px-4 sm:px-6 py-14 sm:py-24 border-t border-white/5">
+          <div className="max-w-4xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-10 md:gap-16 items-start md:items-center">
+              <div>
+                <div className="text-[10px] sm:text-xs font-mono uppercase tracking-widest text-white/25 mb-4">
+                  How it works
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-semibold text-white mb-4 leading-tight [font-family:var(--font-playfair)]">
+                  Three steps to
+                  <br />
+                  instant insight.
+                </h2>
+                <p className="text-sm text-white/40 leading-relaxed">
+                  Lumina uses retrieval-augmented generation to ground every
+                  answer in your document. No hallucination, no guesswork.
+                </p>
+              </div>
+              <div className="space-y-6 sm:space-y-8">
+                {STEPS.map((s) => (
+                  <StepCard key={s.num} step={s} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── FEATURES ── */}
+        <section
+          id="features"
+          className="relative z-10 px-4 sm:px-6 py-14 sm:py-24 border-t border-white/5">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-8 sm:mb-12">
+              <div className="text-[10px] sm:text-xs font-mono uppercase tracking-widest text-white/25 mb-4">
+                Features
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-semibold text-white [font-family:var(--font-playfair)]">
+                Everything you need.
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
+              {FEATURE_CARDS.map((f, i) => (
+                <FeatureCard key={f.title} {...f} index={i} />
               ))}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── FEATURES ── */}
-      <section
-        id="features"
-        className="relative z-10 px-4 sm:px-6 py-14 sm:py-24 border-t border-white/5">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-8 sm:mb-12">
-            <div className="text-[10px] sm:text-xs font-mono uppercase tracking-widest text-white/25 mb-4">
-              Features
+        {/* ── CTA ── */}
+        <section className="relative z-10 px-4 sm:px-6 py-16 sm:py-28 border-t border-white/5">
+          <div className="max-w-2xl mx-auto text-center">
+            <div
+              className="px-6 sm:px-10 py-10 sm:py-12 rounded-2xl sm:rounded-3xl border border-white/10 bg-white/3"
+              style={{ backdropFilter: "blur(12px)" }}>
+              <div className="text-2xl sm:text-3xl mb-4 [font-family:var(--font-playfair)] leading-snug">
+                Ready to illuminate
+                <br />
+                your documents?
+              </div>
+              <p className="text-xs sm:text-sm text-white/40 mb-7 sm:mb-8 max-w-sm mx-auto leading-relaxed">
+                Join researchers, analysts, and lawyers who've stopped
+                ctrl+F‑ing through PDFs.
+              </p>
+              <a
+                href="/chat"
+                className="inline-flex items-center gap-2 px-7 sm:px-8 py-3 rounded-full bg-white text-[#0a0a0f] text-sm font-semibold hover:bg-white/90 transition-all hover:scale-105 shadow-xl shadow-black/30">
+                Get started free →
+              </a>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-semibold text-white [font-family:var(--font-playfair)]">
-              Everything you need.
-            </h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-            {FEATURE_CARDS.map((f, i) => (
-              <FeatureCard key={f.title} {...f} index={i} />
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ── CTA ── */}
-      <section className="relative z-10 px-4 sm:px-6 py-16 sm:py-28 border-t border-white/5">
-        <div className="max-w-2xl mx-auto text-center">
-          <div
-            className="px-6 sm:px-10 py-10 sm:py-12 rounded-2xl sm:rounded-3xl border border-white/10 bg-white/3"
-            style={{ backdropFilter: "blur(12px)" }}>
-            <div className="text-2xl sm:text-3xl mb-4 [font-family:var(--font-playfair)] leading-snug">
-              Ready to illuminate
-              <br />
-              your documents?
+        {/* ── FOOTER ── */}
+        <footer className="relative z-10 px-4 sm:px-6 py-6 sm:py-8 border-t border-white/5">
+          <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-sm font-semibold text-white/70 [font-family:var(--font-playfair)]">
+                Lumina
+              </span>
+              <span className="text-[8px] uppercase tracking-[0.2em] text-white/25 font-mono">
+                RAG
+              </span>
             </div>
-            <p className="text-xs sm:text-sm text-white/40 mb-7 sm:mb-8 max-w-sm mx-auto leading-relaxed">
-              Join researchers, analysts, and lawyers who've stopped ctrl+F‑ing
-              through PDFs.
+            <p className="text-xs text-white/20">
+              Document intelligence, grounded in your content.
             </p>
-            <a
-              href="/chat"
-              className="inline-flex items-center gap-2 px-7 sm:px-8 py-3 rounded-full bg-white text-[#0a0a0f] text-sm font-semibold hover:bg-white/90 transition-all hover:scale-105 shadow-xl shadow-black/30">
-              Get started free →
-            </a>
           </div>
-        </div>
-      </section>
-
-      {/* ── FOOTER ── */}
-      <footer className="relative z-10 px-4 sm:px-6 py-6 sm:py-8 border-t border-white/5">
-        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-sm font-semibold text-white/70 [font-family:var(--font-playfair)]">
-              Lumina
-            </span>
-            <span className="text-[8px] uppercase tracking-[0.2em] text-white/25 font-mono">
-              RAG
-            </span>
-          </div>
-          <p className="text-xs text-white/20">
-            Document intelligence, grounded in your content.
-          </p>
-        </div>
-      </footer>
-    </div>
+        </footer>
+      </div>
+    </SmoothScrollProvider>
   );
 }

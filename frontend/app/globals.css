@@ -123,3 +123,7 @@
     @apply bg-background text-foreground;
   }
 }
+
+.safe-area-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}

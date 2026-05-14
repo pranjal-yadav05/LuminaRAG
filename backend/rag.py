@@ -541,3 +541,32 @@ def highlight_sources(
 
     images.sort(key=lambda x: x["page"])
     return images
+
+
+def generate_session_title(query: str) -> str:
+    """
+    Ask the LLM to produce a short (≤6 word) chat title from the first user question.
+    Falls back to a truncated query if the call fails.
+    """
+    print(f"Generating session title from query: {query}")
+    try:
+        response = client.chat.completions.create(
+            model="openai/gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Generate a concise chat title (maximum 6 words, no quotes, "
+                        "no punctuation at the end) that captures what the user is asking. "
+                        "Reply with ONLY the title — nothing else."
+                    ),
+                },
+                {"role": "user", "content": query},
+            ],
+            max_tokens=20,
+        )
+        print(f"LLM response for title generation: {response.choices[0].message.content}")
+        title = response.choices[0].message.content.strip().strip('"').strip("'")
+        return title or query[:60]
+    except Exception:
+        return query[:60]
