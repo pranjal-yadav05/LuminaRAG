@@ -765,12 +765,12 @@ export default function LuminaLanding() {
           <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
             {/* Grid */}
             <div
-              className="absolute inset-0 opacity-[0.05]"
+              className="absolute inset-0 opacity-[0.07] animate-grid-drift"
               style={{
                 backgroundImage: `
-        linear-gradient(to right, white 1px, transparent 1px),
-        linear-gradient(to bottom, white 1px, transparent 1px)
-      `,
+      linear-gradient(to right, white 1px, transparent 1px),
+      linear-gradient(to bottom, white 1px, transparent 1px)
+    `,
                 backgroundSize: "64px 64px",
                 maskImage:
                   "radial-gradient(circle at center, black 30%, transparent 80%)",
@@ -778,7 +778,6 @@ export default function LuminaLanding() {
                   "radial-gradient(circle at center, black 30%, transparent 80%)",
               }}
             />
-
             {/* Radial fade */}
             <div
               className="absolute inset-0"

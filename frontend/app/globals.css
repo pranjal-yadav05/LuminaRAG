@@ -127,3 +127,17 @@
 .safe-area-bottom {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
+
+@keyframes gridDrift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-64px, -24px, 0);
+  }
+}
+
+.animate-grid-drift {
+  animation: gridDrift 5s linear infinite;
+  will-change: transform;
+}
