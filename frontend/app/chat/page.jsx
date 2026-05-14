@@ -179,6 +179,10 @@ export default function Home() {
     await renameSession(sessionId, title);
   };
 
+  const activeSessionTitle = files
+    ?.flatMap((file) => file.sessions || [])
+    ?.find((s) => s.session_id === activeSessionId)?.title;
+
   // When the user clicks an assistant message, show its evidence and (on
   // mobile) open the viewer drawer automatically.
   const handleSelectMessage = (messageId, messageImages) => {
@@ -375,6 +379,7 @@ export default function Home() {
         <ChatPanel
           messages={messages}
           loading={loading}
+          sessionTitle={activeSessionTitle}
           fileHash={fileId} // ChatPanel checks this for "ready" state
           activeMessageId={activeMessageId}
           onSendMessage={handleSendMessage}

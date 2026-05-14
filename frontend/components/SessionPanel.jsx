@@ -57,7 +57,9 @@ function RenameInput({ initial, onSave, onCancel }) {
   };
 
   return (
-    <div className="flex items-center gap-1 w-full" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="flex items-center gap-1 w-full"
+      onClick={(e) => e.stopPropagation()}>
       <input
         ref={inputRef}
         autoFocus
@@ -71,14 +73,12 @@ function RenameInput({ initial, onSave, onCancel }) {
       />
       <button
         onClick={commit}
-        className="p-0.5 rounded hover:bg-green-500/20 text-green-600 shrink-0"
-      >
+        className="p-0.5 rounded hover:bg-green-500/20 text-green-600 shrink-0">
         <Check className="w-3 h-3" />
       </button>
       <button
         onClick={onCancel}
-        className="p-0.5 rounded hover:bg-destructive/20 text-destructive shrink-0"
-      >
+        className="p-0.5 rounded hover:bg-destructive/20 text-destructive shrink-0">
         <X className="w-3 h-3" />
       </button>
     </div>
@@ -105,7 +105,7 @@ function FileGroup({
   const baseName = (file.file_name || "Untitled").replace(/\.pdf$/i, "");
   const sessions = file.sessions || [];
   const hasActiveSession = sessions.some(
-    (s) => s.session_id === activeSessionId
+    (s) => s.session_id === activeSessionId,
   );
 
   return (
@@ -116,13 +116,11 @@ function FileGroup({
           hasActiveSession
             ? "bg-primary/5 border border-primary/10"
             : "hover:bg-muted/20 border border-transparent"
-        }`}
-      >
+        }`}>
         {/* Expand/collapse toggle */}
         <button
           onClick={() => setExpanded((v) => !v)}
-          className="shrink-0 text-muted-foreground/60 hover:text-muted-foreground"
-        >
+          className="shrink-0 text-muted-foreground/60 hover:text-muted-foreground">
           {expanded ? (
             <ChevronDown className="w-3 h-3" />
           ) : (
@@ -133,16 +131,14 @@ function FileGroup({
         {/* Avatar */}
         <div
           className="w-6 h-6 rounded-md flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-          style={{ backgroundColor: color }}
-        >
+          style={{ backgroundColor: color }}>
           {initials}
         </div>
 
         {/* File name */}
         <button
           onClick={() => setExpanded((v) => !v)}
-          className="flex-1 min-w-0 text-left"
-        >
+          className="flex-1 min-w-0 text-left">
           <p className="text-[11px] font-semibold truncate text-foreground/80 group-hover:text-foreground">
             {baseName}
           </p>
@@ -152,35 +148,34 @@ function FileGroup({
         </button>
 
         {/* Actions: new session + delete file */}
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+        <div className="flex items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onNewSessionOnFile(file.file_id);
             }}
             title="New session"
-            className="p-1 rounded hover:bg-primary/20 text-muted-foreground hover:text-primary"
-          >
+            className="p-1 rounded hover:bg-primary/20 text-muted-foreground hover:text-primary">
             <Plus className="w-3 h-3" />
           </button>
 
           {confirmDeleteFileId === file.file_id ? (
-            <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="flex items-center gap-0.5"
+              onClick={(e) => e.stopPropagation()}>
               <button
                 onClick={() => {
                   onDeleteFile(file.file_id);
                   setConfirmDeleteFileId(null);
                 }}
                 className="p-1 rounded bg-destructive/20 text-destructive hover:bg-destructive/30"
-                title="Confirm delete"
-              >
+                title="Confirm delete">
                 <Check className="w-3 h-3" />
               </button>
               <button
                 onClick={() => setConfirmDeleteFileId(null)}
                 className="p-1 rounded hover:bg-muted/40 text-muted-foreground"
-                title="Cancel"
-              >
+                title="Cancel">
                 <X className="w-3 h-3" />
               </button>
             </div>
@@ -191,8 +186,7 @@ function FileGroup({
                 setConfirmDeleteFileId(file.file_id);
               }}
               title="Delete file"
-              className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
-            >
+              className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive">
               <Trash2 className="w-3 h-3" />
             </button>
           )}
@@ -204,25 +198,30 @@ function FileGroup({
         <div className="ml-4 mt-0.5 space-y-0.5 border-l border-border/40 pl-2">
           {sessions
             .slice()
-            .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
+            .sort(
+              (a, b) =>
+                new Date(b.updated_at || b.created_at) -
+                new Date(a.updated_at || a.created_at),
+            )
             .map((session) => {
               const isActive = session.session_id === activeSessionId;
               const isRenaming = renamingSessionId === session.session_id;
-              const isConfirmingDelete = confirmDeleteSessionId === session.session_id;
+              const isConfirmingDelete =
+                confirmDeleteSessionId === session.session_id;
               const displayTitle =
-                session.title ||
-                `Session ${session.session_id.slice(0, 6)}…`;
+                session.title || `Session ${session.session_id.slice(0, 6)}…`;
 
               return (
                 <div
                   key={session.session_id}
-                  onClick={() => !isRenaming && onSelectSession(session.session_id)}
+                  onClick={() =>
+                    !isRenaming && onSelectSession(session.session_id)
+                  }
                   className={`flex items-start gap-2 px-2 py-2 rounded-lg cursor-pointer group transition-all ${
                     isActive
                       ? "bg-primary/10 border border-primary/20"
                       : "hover:bg-muted/30 border border-transparent"
-                  }`}
-                >
+                  }`}>
                   <MessageSquare
                     className={`w-3 h-3 mt-0.5 shrink-0 ${
                       isActive ? "text-primary" : "text-muted-foreground/40"
@@ -246,8 +245,7 @@ function FileGroup({
                             isActive
                               ? "text-primary"
                               : "text-foreground/70 group-hover:text-foreground"
-                          }`}
-                        >
+                          }`}>
                           {displayTitle}
                         </p>
                         <span className="flex items-center gap-1 text-[10px] text-muted-foreground/50 mt-0.5">
@@ -261,9 +259,8 @@ function FileGroup({
                   {/* Session actions */}
                   {!isRenaming && (
                     <div
-                      className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                      className="flex items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0"
+                      onClick={(e) => e.stopPropagation()}>
                       {isConfirmingDelete ? (
                         <>
                           <button
@@ -272,32 +269,32 @@ function FileGroup({
                               setConfirmDeleteSessionId(null);
                             }}
                             className="p-0.5 rounded bg-destructive/20 text-destructive hover:bg-destructive/30"
-                            title="Confirm delete"
-                          >
+                            title="Confirm delete">
                             <Check className="w-3 h-3" />
                           </button>
                           <button
                             onClick={() => setConfirmDeleteSessionId(null)}
                             className="p-0.5 rounded hover:bg-muted/40 text-muted-foreground"
-                            title="Cancel"
-                          >
+                            title="Cancel">
                             <X className="w-3 h-3" />
                           </button>
                         </>
                       ) : (
                         <>
                           <button
-                            onClick={() => setRenamingSessionId(session.session_id)}
+                            onClick={() =>
+                              setRenamingSessionId(session.session_id)
+                            }
                             title="Rename"
-                            className="p-0.5 rounded hover:bg-muted/40 text-muted-foreground hover:text-foreground"
-                          >
+                            className="p-0.5 rounded hover:bg-muted/40 text-muted-foreground hover:text-foreground">
                             <Pencil className="w-3 h-3" />
                           </button>
                           <button
-                            onClick={() => setConfirmDeleteSessionId(session.session_id)}
+                            onClick={() =>
+                              setConfirmDeleteSessionId(session.session_id)
+                            }
                             title="Delete session"
-                            className="p-0.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
-                          >
+                            className="p-0.5 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive">
                             <Trash2 className="w-3 h-3" />
                           </button>
                         </>
@@ -312,7 +309,9 @@ function FileGroup({
 
       {expanded && sessions.length === 0 && (
         <div className="ml-6 mt-0.5 px-2 py-1.5">
-          <p className="text-[10px] text-muted-foreground/50 italic">No sessions yet</p>
+          <p className="text-[10px] text-muted-foreground/50 italic">
+            No sessions yet
+          </p>
         </div>
       )}
     </div>
@@ -322,11 +321,11 @@ function FileGroup({
 // ── Main SessionPanel ─────────────────────────────────────────────────────────
 export default function SessionPanel({
   files = [],
-  sessions = [],           // kept for legacy compat; prefer files[]
+  sessions = [], // kept for legacy compat; prefer files[]
   sessionsLoading,
   activeSessionId,
   fileId,
-  fileHash,                // legacy alias
+  fileHash, // legacy alias
   fileName,
   processingStatus,
   onUpload,
@@ -372,8 +371,7 @@ export default function SessionPanel({
     <div
       className={`${
         mobile ? "flex w-full h-full" : "flex w-full h-full"
-      } border-r border-border bg-card flex-col`}
-    >
+      } border-r border-border bg-card flex-col`}>
       {/* Panel header */}
       <div className="px-4 py-3.5 border-b border-border/50 flex items-center justify-between">
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -382,8 +380,7 @@ export default function SessionPanel({
         <button
           onClick={onNewSession}
           title="New session"
-          className="p-1.5 rounded-md hover:bg-muted/40 transition-colors"
-        >
+          className="p-1.5 rounded-md hover:bg-muted/40 transition-colors">
           <Plus className="w-3.5 h-3.5 text-muted-foreground" />
         </button>
       </div>
@@ -401,8 +398,7 @@ export default function SessionPanel({
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
             onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-          >
+            onClick={() => fileInputRef.current?.click()}>
             <input
               ref={fileInputRef}
               type="file"
@@ -423,8 +419,8 @@ export default function SessionPanel({
                   {isProcessing
                     ? "Processing…"
                     : readySignal && fileName
-                    ? "Upload another PDF"
-                    : "Upload PDF"}
+                      ? "Upload another PDF"
+                      : "Upload PDF"}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
                   {isProcessing
@@ -448,10 +444,7 @@ export default function SessionPanel({
             <div className="space-y-0.5 mt-0.5">
               {files
                 .slice()
-                .sort(
-                  (a, b) =>
-                    new Date(b.created_at) - new Date(a.created_at)
-                )
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
                 .map((file) => (
                   <FileGroup
                     key={file.file_id}
@@ -471,7 +464,9 @@ export default function SessionPanel({
               <div className="w-10 h-10 rounded-xl bg-muted/40 flex items-center justify-center mb-3">
                 <FolderOpen className="w-5 h-5 text-muted-foreground/50" />
               </div>
-              <p className="text-xs font-medium text-muted-foreground">No sessions yet</p>
+              <p className="text-xs font-medium text-muted-foreground">
+                No sessions yet
+              </p>
               <p className="text-[11px] text-muted-foreground/70 mt-1">
                 Upload a PDF to start
               </p>
@@ -481,15 +476,14 @@ export default function SessionPanel({
             <div className="space-y-0.5 mt-0.5">
               {sessions
                 .slice()
-                .sort(
-                  (a, b) =>
-                    new Date(b.updated_at) - new Date(a.updated_at)
-                )
+                .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
                 .map((session) => {
                   const isActive = session.session_id === activeSessionId;
                   const docName = session.file_name || "Untitled";
                   const docBase = docName.replace(/\.pdf$/i, "");
-                  const color = hashColor(session.file_id || session.session_id);
+                  const color = hashColor(
+                    session.file_id || session.session_id,
+                  );
                   const initials = getDocInitials(docName);
 
                   return (
@@ -500,21 +494,18 @@ export default function SessionPanel({
                         isActive
                           ? "bg-primary/10 border border-primary/20"
                           : "hover:bg-muted/30 border border-transparent"
-                      }`}
-                    >
+                      }`}>
                       <div className="flex items-start gap-2.5">
                         <div
                           className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold text-white shrink-0 mt-0.5"
-                          style={{ backgroundColor: color }}
-                        >
+                          style={{ backgroundColor: color }}>
                           {initials}
                         </div>
                         <div className="min-w-0 flex-1">
                           <p
                             className={`text-[11px] font-semibold truncate leading-tight ${
                               isActive ? "text-primary" : "text-foreground/80"
-                            }`}
-                          >
+                            }`}>
                             {session.title || docBase}
                           </p>
                           <span className="flex items-center gap-1 text-[10px] text-muted-foreground/60 mt-0.5">
