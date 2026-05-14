@@ -213,9 +213,9 @@ def answer_from_chunks(
     user_id: str,
     file_id: str,
     history: list | None = None,
-) -> tuple[str, list, list]:
+) -> tuple[str, list, list, list]:
     """
-    Returns (answer, highlights, images).
+    Returns (answer, highlights, images, top_chunks).
     """
     query_emb  = client.embeddings.create(model=EMBEDDING_MODEL, input=query).data[0].embedding
     top_chunks = retrieve_top_chunks(query_emb, chunk_embeddings, top_k=5)
@@ -268,7 +268,7 @@ def answer_from_chunks(
     if not images and pdf_bytes:
         images = _render_page_plain(user_id, file_id, pdf_bytes, top_chunks[0][2])
 
-    return answer, highlights, images
+    return answer, highlights, images, top_chunks
 
 
 # ── plain page render (no boxes) ─────────────────────────────────────────────
@@ -543,12 +543,21 @@ def highlight_sources(
     return images
 
 
-def generate_session_title(query: str) -> str:
+def generate_session_title(
+    query: str,
+    context: str = "",
+    answer: str = "",
+) -> str:
     """
-    Ask the LLM to produce a short (≤6 word) chat title from the first user question.
-    Falls back to a truncated query if the call fails.
+    Generate a concise session title using:
+    - user question
+    - retrieved document context
+    - generated answer
+
+    This prevents vague first questions from producing
+    meaningless titles.
     """
-    print(f"Generating session title from query: {query}")
+
     try:
         response = client.chat.completions.create(
             model="openai/gpt-4o-mini",
@@ -556,17 +565,39 @@ def generate_session_title(query: str) -> str:
                 {
                     "role": "system",
                     "content": (
-                        "Generate a concise chat title (maximum 6 words, no quotes, "
-                        "no punctuation at the end) that captures what the user is asking. "
-                        "Reply with ONLY the title — nothing else."
+                        "Generate a concise and accurate chat title "
+                        "(maximum 6 words).\n\n"
+
+                        "Rules:\n"
+                        "- Use the DOCUMENT CONTEXT and ANSWER to understand entities.\n"
+                        "- Do NOT repeat words unnecessarily.\n"
+                        "- Do NOT use vague titles.\n"
+                        "- Prefer specific nouns/entities/topics.\n"
+                        "- No quotes.\n"
+                        "- No punctuation at the end.\n"
+                        "- Reply ONLY with the title."
                     ),
                 },
-                {"role": "user", "content": query},
+                {
+                    "role": "user",
+                    "content": (
+                        f"Question:\n{query}\n\n"
+                        f"Retrieved Context:\n{context}\n\n"
+                        f"Answer:\n{answer}"
+                    ),
+                },
             ],
             max_tokens=20,
         )
-        print(f"LLM response for title generation: {response.choices[0].message.content}")
-        title = response.choices[0].message.content.strip().strip('"').strip("'")
+
+        title = (
+            response.choices[0]
+            .message.content.strip()
+            .strip('"')
+            .strip("'")
+        )
+
         return title or query[:60]
+
     except Exception:
         return query[:60]

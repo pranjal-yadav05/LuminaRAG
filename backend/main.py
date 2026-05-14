@@ -342,7 +342,7 @@ async def ask(
     is_first_message = len(history) == 0
     _DEFAULT_TITLES = {"new chat", ""}
     has_title = session.get("title", "").strip().lower() not in _DEFAULT_TITLES
-    answer, highlights, images = answer_from_chunks(
+    answer, highlights, images, top_chunks = answer_from_chunks(
         query=req.query,
         chunk_embeddings=data["embeddings"],
         user_id=user_id,
@@ -357,7 +357,16 @@ async def ask(
     # Auto-title only on first message and only if no title yet
     if is_first_message and not has_title:
         print(f"[title] First message detected, generating title...")
-        title = generate_session_title(req.query)
+        context_text = "\n".join(
+            chunk_text[:300]
+            for _, chunk_text, _, _ in top_chunks[:3]
+        )
+
+        title = generate_session_title(
+            query=req.query,
+            context=context_text,
+            answer=answer,
+        )
         await rename_session(session_id, title)
 
     return {
