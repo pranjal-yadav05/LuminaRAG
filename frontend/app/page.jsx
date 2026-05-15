@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import SmoothScrollProvider from "../components/SmoothScrollProvider";
 const cn = (...cls) => cls.filter(Boolean).join(" ");
+import BlurStack from "../components/ui/blur-stack";
 import {
   Zap,
   Search,
@@ -930,6 +931,7 @@ export default function LuminaLanding() {
           </div>
         </footer>
       </div>
+      <BlurStack className="pointer-events-none fixed bottom-0 left-0 right-0 h-50 z-50" />
     </SmoothScrollProvider>
   );
 }
